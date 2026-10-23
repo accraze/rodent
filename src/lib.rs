@@ -388,30 +388,72 @@ nih_export_vst3!(Rodent);
 mod tests {
     use super::*;
 
+    /// Runs one second of a sine through a channel and returns the output once the filters settle.
+    fn render(dist: f32, filter: f32, diode: Diode, fs: f32, freq: f32, amp: f32) -> Vec<f32> {
+        let c = Coeffs::new(dist, filter, diode, fs);
+        let aa = AntiAlias::new(fs);
+        let mut ch = Channel {
+            up: aa,
+            down: aa,
+            ..Channel::default()
+        };
+        let n = fs as usize;
+        (0..n)
+            .map(|i| ch.process(amp * (2.0 * PI * freq * i as f32 / fs).sin(), &c))
+            .skip(n / 10)
+            .collect()
+    }
+
+    fn peak(x: &[f32]) -> f32 {
+        x.iter().fold(0.0, |m, y| m.max(y.abs()))
+    }
+
+    fn rms(x: &[f32]) -> f32 {
+        (x.iter().map(|y| y * y).sum::<f32>() / x.len() as f32).sqrt()
+    }
+
     #[test]
     fn output_is_bounded_and_not_silent() {
-        let fs = 48000.0;
-        for diode in [Diode::Silicon, Diode::Led, Diode::Germanium] {
-            for (dist, filter) in [(0.0, 0.0), (0.5, 0.3), (1.0, 0.0), (1.0, 1.0)] {
-                let c = Coeffs::new(dist, filter, diode, fs);
-                let aa = AntiAlias::new(fs);
-                let mut ch = Channel {
-                    up: aa,
-                    down: aa,
-                    ..Channel::default()
-                };
-                let peak = (0..48000)
-                    .map(|n| ch.process(0.3 * (2.0 * PI * 220.0 * n as f32 / fs).sin(), &c))
-                    .skip(4800)
-                    .fold(0f32, |m, y| {
-                        assert!(y.is_finite());
-                        m.max(y.abs())
-                    });
-                let vf = diode.forward_voltage();
-                println!("vf {vf} dist {dist} filter {filter}: peak {peak:.3}");
-                // Anti-alias filter ringing lets peaks overshoot the diode clip a bit
-                assert!(peak > 0.05 && peak < 1.5 * vf);
+        for fs in [44100.0, 48000.0, 96000.0, 192000.0] {
+            for diode in [Diode::Silicon, Diode::Led, Diode::Germanium] {
+                for (dist, filter) in [(0.0, 0.0), (0.5, 0.3), (1.0, 0.0), (1.0, 1.0)] {
+                    let out = render(dist, filter, diode, fs, 220.0, 0.3);
+                    assert!(out.iter().all(|y| y.is_finite()));
+                    let (peak, vf) = (peak(&out), diode.forward_voltage());
+                    // Anti-alias filter ringing lets peaks overshoot the diode clip a bit
+                    assert!(
+                        peak > 0.05 && peak < 1.5 * vf,
+                        "fs {fs} vf {vf} dist {dist} filter {filter}: peak {peak}"
+                    );
+                }
             }
         }
+    }
+
+    #[test]
+    fn silence_in_silence_out() {
+        let out = render(1.0, 0.0, Diode::Silicon, 48000.0, 0.0, 0.0);
+        assert!(peak(&out) < 1e-6);
+    }
+
+    #[test]
+    fn distortion_squares_up_the_wave() {
+        // Crest factor (peak / RMS) is 1.41 for a sine and falls towards 1.0 as it clips into a square
+        let crest = |dist| {
+            let out = render(dist, 0.5, Diode::Silicon, 48000.0, 220.0, 0.3);
+            peak(&out) / rms(&out)
+        };
+        let (clean, dirty) = (crest(0.0), crest(1.0));
+        assert!(
+            clean > 1.3 && dirty < clean - 0.2,
+            "clean {clean}, dirty {dirty}"
+        );
+    }
+
+    #[test]
+    fn filter_knob_darkens() {
+        let level = |filter| rms(&render(0.0, filter, Diode::Silicon, 48000.0, 4000.0, 0.1));
+        let (open, dark) = (level(0.0), level(1.0));
+        assert!(dark < 0.3 * open, "open {open}, dark {dark}");
     }
 }
