@@ -15,6 +15,7 @@ cargo clippy --release --lib
   can't build nih-plug. Prefix commands with `PATH="$HOME/.cargo/bin:$PATH"`.
 - The GUI build needs X11/GL dev packages (listed in README); a missing `x11-xcb` pkg-config error means they're not installed.
 - Bitwig needs the plugin re-added or a restart to pick up a new build.
+- Releases: follow `docs/RELEASING.md` (CI publishes on annotated `v*` tags; never move an existing tag).
 - The "trailing semicolon in macro" warnings come from nih-plug's export macros, not our code.
 
 ## DSP structure

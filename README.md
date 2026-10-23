@@ -48,6 +48,10 @@ cp -r target/bundled/Rodent.vst3 ~/.vst3/   # optional
 
 Then rescan plug-ins in your DAW.
 
+## Releasing
+
+See [docs/RELEASING.md](docs/RELEASING.md). In short: bump the version, push an annotated `v*` tag, and CI publishes the release.
+
 ## License
 
 Rodent is licensed under the [GNU General Public License v3.0 or later](LICENSE).
