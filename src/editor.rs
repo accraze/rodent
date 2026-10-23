@@ -2,15 +2,17 @@
 
 use crate::{Diode, RodentParams};
 use nih_plug::prelude::*;
-use nih_plug_egui::create_egui_editor;
 use nih_plug_egui::egui::{
-    self, Align2, Color32, FontId, Painter, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2,
+    self, emath::TSTransform, Align2, Color32, FontId, Painter, Pos2, Rect, Sense, Stroke,
+    StrokeKind, Ui, UiBuilder, Vec2,
 };
+use nih_plug_egui::{create_egui_editor, resizable_window::ResizableWindow};
 use std::f32::consts::{PI, TAU};
 use std::sync::Arc;
 
 pub const WIDTH: u32 = 360;
 pub const HEIGHT: u32 = 440;
+const DESIGN: Rect = Rect::from_min_max(Pos2::ZERO, Pos2::new(WIDTH as f32, HEIGHT as f32));
 
 const KNOB_RADIUS: f32 = 30.0;
 /// Knobs turn +-135 degrees from straight up
@@ -24,85 +26,100 @@ pub fn create(params: Arc<RodentParams>) -> Option<Box<dyn Editor>> {
         (),
         |_, _| {},
         move |ctx, setter, _| {
-            egui::CentralPanel::default()
-                .frame(egui::Frame::NONE.fill(Color32::from_gray(48)))
-                .show(ctx, |ui| {
-                    let body = ui.max_rect().shrink(12.0);
-                    let p = ui.painter();
-                    p.rect_filled(body, 14.0, ENCLOSURE);
-                    p.rect_stroke(
-                        body,
-                        14.0,
-                        Stroke::new(2.0_f32, Color32::from_gray(64)),
-                        StrokeKind::Inside,
-                    );
-                    for corner in [
-                        body.left_top(),
-                        body.right_top(),
-                        body.left_bottom(),
-                        body.right_bottom(),
-                    ] {
-                        screw(p, corner + (body.center() - corner).normalized() * 22.0);
-                    }
+            ResizableWindow::new("resize")
+                .min_size(DESIGN.size() / 2.0)
+                .show(ctx, &params.editor_state, |ui| {
+                    let window = ui.max_rect();
+                    ui.painter()
+                        .rect_filled(window, 0.0, Color32::from_gray(48));
 
-                    // RAT2 knob order
-                    for (i, param) in [&params.volume, &params.filter, &params.distortion]
-                        .into_iter()
-                        .enumerate()
-                    {
-                        let x = body.left() + body.width() * (i as f32 + 0.5) / 3.0;
-                        knob(ui, setter, param, Pos2::new(x, body.top() + 92.0));
-                    }
-
-                    let led = Pos2::new(body.center().x, body.top() + 178.0);
-                    if params.bypass.value() {
-                        p.circle_filled(led, 4.5, Color32::from_rgb(70, 12, 10));
-                    } else {
-                        p.circle_filled(
-                            led,
-                            10.0,
-                            Color32::from_rgba_unmultiplied(255, 30, 20, 40),
-                        );
-                        p.circle_filled(led, 4.5, Color32::from_rgb(255, 50, 35));
-                        p.circle_filled(
-                            led + Vec2::new(-1.5, -1.5),
-                            1.5,
-                            Color32::from_rgb(255, 190, 180),
-                        );
-                    }
-
-                    let switch_x = body.right() - body.width() / 6.0;
-                    diode_switch(ui, setter, &params.diode, Pos2::new(switch_x, led.y));
-
-                    let logo = Pos2::new(body.center().x, body.top() + 245.0);
-                    // The default font has no bold weight, so fake one by overdrawing
-                    for offset in [
-                        Vec2::ZERO,
-                        Vec2::new(1.0, 0.0),
-                        Vec2::new(0.0, 1.0),
-                        Vec2::splat(1.0),
-                    ] {
-                        p.text(
-                            logo + offset,
-                            Align2::CENTER_CENTER,
-                            "RODENT",
-                            FontId::proportional(58.0),
-                            WHITE,
-                        );
-                    }
-                    p.text(
-                        logo + Vec2::new(0.0, 40.0),
-                        Align2::CENTER_CENTER,
-                        "D I S T O R T I O N",
-                        FontId::proportional(12.0),
-                        WHITE,
-                    );
-
-                    let switch = Pos2::new(body.center().x, body.bottom() - 62.0);
-                    footswitch(ui, setter, &params.bypass, switch);
+                    // Draw at the design size on its own layer, then scale that layer (input
+                    // included) to fit the window. The window corner stays in the margin so the
+                    // resize handle underneath remains visible and grabbable.
+                    let scale =
+                        (window.width() / DESIGN.width()).min(window.height() / DESIGN.height());
+                    let offset = window.center().to_vec2() - DESIGN.center().to_vec2() * scale;
+                    let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::new("pedal"));
+                    ctx.set_transform_layer(layer, TSTransform::new(offset, scale));
+                    ui.scope_builder(UiBuilder::new().layer_id(layer).max_rect(DESIGN), |ui| {
+                        ui.set_clip_rect(DESIGN);
+                        pedal(ui, setter, &params);
+                    });
                 });
         },
     )
+}
+
+fn pedal(ui: &Ui, setter: &ParamSetter, params: &RodentParams) {
+    let body = ui.max_rect().shrink(12.0);
+    let p = ui.painter();
+    p.rect_filled(body, 14.0, ENCLOSURE);
+    p.rect_stroke(
+        body,
+        14.0,
+        Stroke::new(2.0_f32, Color32::from_gray(64)),
+        StrokeKind::Inside,
+    );
+    for corner in [
+        body.left_top(),
+        body.right_top(),
+        body.left_bottom(),
+        body.right_bottom(),
+    ] {
+        screw(p, corner + (body.center() - corner).normalized() * 22.0);
+    }
+
+    // RAT2 knob order
+    for (i, param) in [&params.volume, &params.filter, &params.distortion]
+        .into_iter()
+        .enumerate()
+    {
+        let x = body.left() + body.width() * (i as f32 + 0.5) / 3.0;
+        knob(ui, setter, param, Pos2::new(x, body.top() + 92.0));
+    }
+
+    let led = Pos2::new(body.center().x, body.top() + 178.0);
+    if params.bypass.value() {
+        p.circle_filled(led, 4.5, Color32::from_rgb(70, 12, 10));
+    } else {
+        p.circle_filled(led, 10.0, Color32::from_rgba_unmultiplied(255, 30, 20, 40));
+        p.circle_filled(led, 4.5, Color32::from_rgb(255, 50, 35));
+        p.circle_filled(
+            led + Vec2::new(-1.5, -1.5),
+            1.5,
+            Color32::from_rgb(255, 190, 180),
+        );
+    }
+
+    let switch_x = body.right() - body.width() / 6.0;
+    diode_switch(ui, setter, &params.diode, Pos2::new(switch_x, led.y));
+
+    let logo = Pos2::new(body.center().x, body.top() + 245.0);
+    // The default font has no bold weight, so fake one by overdrawing
+    for offset in [
+        Vec2::ZERO,
+        Vec2::new(1.0, 0.0),
+        Vec2::new(0.0, 1.0),
+        Vec2::splat(1.0),
+    ] {
+        p.text(
+            logo + offset,
+            Align2::CENTER_CENTER,
+            "RODENT",
+            FontId::proportional(58.0),
+            WHITE,
+        );
+    }
+    p.text(
+        logo + Vec2::new(0.0, 40.0),
+        Align2::CENTER_CENTER,
+        "D I S T O R T I O N",
+        FontId::proportional(12.0),
+        WHITE,
+    );
+
+    let switch = Pos2::new(body.center().x, body.bottom() - 62.0);
+    footswitch(ui, setter, &params.bypass, switch);
 }
 
 /// Unit vector for a knob angle, measured clockwise from straight up.
