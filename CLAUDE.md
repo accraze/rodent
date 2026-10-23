@@ -13,6 +13,7 @@ cargo clippy --release --lib
 
 - The system has an old distro Rust (1.75) in `/usr/bin` that comes before `~/.cargo/bin` on PATH and
   can't build nih-plug. Prefix commands with `PATH="$HOME/.cargo/bin:$PATH"`.
+- The GUI build needs X11/GL dev packages (listed in README); a missing `x11-xcb` pkg-config error means they're not installed.
 - Bitwig needs the plugin re-added or a restart to pick up a new build.
 - The "trailing semicolon in macro" warnings come from nih-plug's export macros, not our code.
 
@@ -23,5 +24,6 @@ cargo clippy --release --lib
   test, so change the mapping there only.
 - `Channel::process` runs the non-linear stages (gain stage, rail clip, slew limit, diode clip) at
   `OVERSAMPLING`x, then applies the tone filter at the base rate.
+- GUI is `editor()` in `lib.rs`: nih_plug_egui `ParamSlider`s in a fixed 320x200 window (no knob widget exists in nih_plug_egui).
 - The audio thread must not allocate (`assert_process_allocs` is enabled).
 - `CLAP_ID` and `VST3_CLASS_ID` must never change, or saved Bitwig projects lose the plugin.

@@ -15,6 +15,11 @@ The non-linear part runs at 4x oversampling.
 ## Build
 
 Needs a recent Rust from [rustup](https://rustup.rs) (distro packages are usually too old).
+The GUI (egui) also needs X11/GL headers:
+
+```sh
+sudo apt install libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev libgl-dev
+```
 
 ```sh
 cargo xtask bundle rodent --release
