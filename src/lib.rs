@@ -12,9 +12,11 @@
 //! The non-linear part runs at 4x oversampling to keep aliasing down.
 
 use nih_plug::prelude::*;
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::EguiState;
 use std::f32::consts::PI;
 use std::sync::Arc;
+
+mod editor;
 
 const OVERSAMPLING: usize = 4;
 
@@ -187,7 +189,8 @@ struct Rodent {
 
 #[derive(Params)]
 struct RodentParams {
-    #[persist = "editor-state"]
+    // Renamed from "editor-state" so projects saved with the old 320x200 slider UI open at the new size
+    #[persist = "editor-size"]
     editor_state: Arc<EguiState>,
 
     #[id = "distortion"]
@@ -209,7 +212,7 @@ fn knob(name: &str, default: f32) -> FloatParam {
 impl Default for RodentParams {
     fn default() -> Self {
         Self {
-            editor_state: EguiState::from_size(320, 200),
+            editor_state: EguiState::from_size(editor::WIDTH, editor::HEIGHT),
             distortion: knob("Distortion", 0.5),
             filter: knob("Filter", 0.3),
             volume: FloatParam::new(
@@ -269,22 +272,7 @@ impl Plugin for Rodent {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        let params = self.params.clone();
-        create_egui_editor(
-            self.params.editor_state.clone(),
-            (),
-            |_, _| {},
-            move |egui_ctx, setter, _| {
-                egui::CentralPanel::default().show(egui_ctx, |ui| {
-                    ui.vertical_centered(|ui| ui.heading("RODENT"));
-                    ui.separator();
-                    for param in [&params.distortion, &params.filter, &params.volume] {
-                        ui.label(param.name());
-                        ui.add(widgets::ParamSlider::for_param(param, setter).with_width(290.0));
-                    }
-                });
-            },
-        )
+        editor::create(self.params.clone())
     }
 
     fn initialize(

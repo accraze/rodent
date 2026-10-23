@@ -24,6 +24,8 @@ cargo clippy --release --lib
   test, so change the mapping there only.
 - `Channel::process` runs the non-linear stages (gain stage, rail clip, slew limit, diode clip) at
   `OVERSAMPLING`x, then applies the tone filter at the base rate.
-- GUI is `editor()` in `lib.rs`: nih_plug_egui `ParamSlider`s in a fixed 320x200 window (no knob widget exists in nih_plug_egui).
+- GUI lives in `src/editor.rs`: a hand-painted pedal (egui `Painter`) with a custom `knob()` widget.
+  Drag to turn, Shift for fine, double-click resets. Layout is absolute within a fixed `WIDTH`x`HEIGHT` window.
+  Changing the window size needs a new `#[persist]` key on `editor_state`, or old projects reopen at the old size.
 - The audio thread must not allocate (`assert_process_allocs` is enabled).
 - `CLAP_ID` and `VST3_CLASS_ID` must never change, or saved Bitwig projects lose the plugin.
