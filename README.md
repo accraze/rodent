@@ -17,6 +17,7 @@ The non-linear part runs at 4x oversampling.
 | Distortion | 0–100% (audio taper, up to ~66 dB)             |
 | Diodes     | SI (stock 1N914), LED (Turbo RAT), GE (You Dirty Rat) |
 | Footswitch | Bypass (the LED is lit when the effect is on)  |
+| Preset     | ‹ › steps through 7 level-matched factory presets; shows CUSTOM once you tweak |
 
 Knobs: drag or scroll to turn, hold Shift for fine control, double-click to reset.
 Drag the bottom-right corner to resize the window.

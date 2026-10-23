@@ -32,5 +32,8 @@ cargo clippy --release --lib
   persisted per project in `editor_state`.
 - `Diode` enum sets the clipper's forward voltage (Si 0.6 V stock, LED 1.7 V Turbo RAT, Ge 0.3 V); output level
   changes with it like the real mods. Bypass crossfades to dry but keeps processing so filter state stays warm.
+- `PRESETS` in `lib.rs` are factory presets; the GUI selector matches current settings against them. Their
+  `volume_db` is level-matched to Classic, enforced by `presets_are_level_matched`, so re-run it after edits.
+  Classic must equal the param defaults so new instances show CLASSIC.
 - The audio thread must not allocate (`assert_process_allocs` is enabled).
 - `CLAP_ID` and `VST3_CLASS_ID` must never change, or saved Bitwig projects lose the plugin.

@@ -59,6 +59,27 @@ impl Diode {
     }
 }
 
+/// Factory preset. Bypass isn't part of a preset.
+struct Preset {
+    name: &'static str,
+    distortion: f32,
+    filter: f32,
+    volume_db: f32,
+    diode: Diode,
+}
+
+/// Volumes are level-matched to "Classic", see `presets_are_level_matched`.
+#[rustfmt::skip]
+const PRESETS: &[Preset] = &[
+    Preset { name: "Classic", distortion: 0.50, filter: 0.30, volume_db:  0.0, diode: Diode::Silicon },
+    Preset { name: "Edge",    distortion: 0.15, filter: 0.10, volume_db:  1.0, diode: Diode::Silicon },
+    Preset { name: "Crunch",  distortion: 0.35, filter: 0.30, volume_db:  0.0, diode: Diode::Silicon },
+    Preset { name: "Lead",    distortion: 0.75, filter: 0.25, volume_db: -9.0, diode: Diode::Led },
+    Preset { name: "Fuzz",    distortion: 1.00, filter: 0.15, volume_db:  6.0, diode: Diode::Germanium },
+    Preset { name: "Doom",    distortion: 1.00, filter: 0.70, volume_db:  0.5, diode: Diode::Silicon },
+    Preset { name: "Bright",  distortion: 0.90, filter: 0.00, volume_db: -0.5, diode: Diode::Silicon },
+];
+
 /// Topology-preserving one-pole filter, gives both low-pass and high-pass outputs.
 #[derive(Default, Clone, Copy)]
 struct OnePole {
@@ -455,5 +476,24 @@ mod tests {
         let level = |filter| rms(&render(0.0, filter, Diode::Silicon, 48000.0, 4000.0, 0.1));
         let (open, dark) = (level(0.0), level(1.0));
         assert!(dark < 0.3 * open, "open {open}, dark {dark}");
+    }
+
+    #[test]
+    fn presets_are_level_matched() {
+        // A 220 Hz sine stands in for a guitar; close enough to keep switching presets from jumping
+        let level = |p: &Preset| {
+            let out = render(p.distortion, p.filter, p.diode, 48000.0, 220.0, 0.3);
+            util::gain_to_db(rms(&out)) + p.volume_db
+        };
+        let reference = level(&PRESETS[0]);
+        for p in PRESETS {
+            let diff = level(p) - reference;
+            assert!(
+                diff.abs() < 1.0,
+                "{} is {diff:+.1} dB vs {}",
+                p.name,
+                PRESETS[0].name
+            );
+        }
     }
 }
