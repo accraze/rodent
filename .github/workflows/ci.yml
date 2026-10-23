@@ -3,11 +3,14 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to publish releases on tag pushes
     steps:
       - uses: actions/checkout@v7
 
@@ -49,3 +52,15 @@ jobs:
           path: |
             target/bundled/Rodent.clap
             target/bundled/Rodent.vst3
+
+      # Pushing a v* tag publishes a release, using the annotated tag's message as the notes
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # checkout only fetches the lightweight ref, so fetch the annotated tag object for its message
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          zip_name="rodent-$GITHUB_REF_NAME-linux.zip"
+          (cd target/bundled && zip -qr "../../$zip_name" Rodent.clap Rodent.vst3)
+          gh release create "$GITHUB_REF_NAME" "$zip_name" --title "Rodent $GITHUB_REF_NAME" --notes-from-tag

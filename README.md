@@ -39,6 +39,8 @@ Bundles land in `target/bundled/`.
 
 ## Install (Linux)
 
+Grab `rodent-<version>-linux.zip` from [Releases](https://github.com/accraze/rodent/releases) and unzip it, or build it yourself. Then:
+
 ```sh
 cp target/bundled/Rodent.clap ~/.clap/
 cp -r target/bundled/Rodent.vst3 ~/.vst3/   # optional
