@@ -142,6 +142,33 @@ fn knob(ui: &Ui, setter: &ParamSetter, param: &FloatParam, center: Pos2) {
         setter.end_set_parameter(param);
     }
 
+    if response.hovered() {
+        let (notches, shift) = ui.input(|i| {
+            let notches: f32 = i
+                .events
+                .iter()
+                .map(|e| match e {
+                    // Smooth-scrolling touchpads report points; treat ~50 points as one notch
+                    egui::Event::MouseWheel {
+                        unit: egui::MouseWheelUnit::Point,
+                        delta,
+                        ..
+                    } => delta.y / 50.0,
+                    egui::Event::MouseWheel { delta, .. } => delta.y,
+                    _ => 0.0,
+                })
+                .sum();
+            (notches, i.modifiers.shift)
+        });
+        if notches != 0.0 {
+            let step = if shift { 0.002 } else { 0.02 };
+            let value = (param.unmodulated_normalized_value() + notches * step).clamp(0.0, 1.0);
+            setter.begin_set_parameter(param);
+            setter.set_parameter_normalized(param, value);
+            setter.end_set_parameter(param);
+        }
+    }
+
     let value = param.unmodulated_normalized_value();
     let angle = -SWEEP + 2.0 * SWEEP * value;
     let p = ui.painter();

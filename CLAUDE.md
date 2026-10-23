@@ -25,7 +25,7 @@ cargo clippy --release --lib
 - `Channel::process` runs the non-linear stages (gain stage, rail clip, slew limit, diode clip) at
   `OVERSAMPLING`x, then applies the tone filter at the base rate.
 - GUI lives in `src/editor.rs`: a hand-painted pedal (egui `Painter`) with a custom `knob()` widget.
-  Drag to turn, Shift for fine, double-click resets. Layout is absolute within a fixed `WIDTH`x`HEIGHT` window.
+  Drag or mouse wheel to turn (2%/notch), Shift for fine, double-click resets. Layout is absolute within a fixed `WIDTH`x`HEIGHT` window.
   Changing the window size needs a new `#[persist]` key on `editor_state`, or old projects reopen at the old size.
 - `Diode` enum sets the clipper's forward voltage (Si 0.6 V stock, LED 1.7 V Turbo RAT, Ge 0.3 V); output level
   changes with it like the real mods. Bypass crossfades to dry but keeps processing so filter state stays warm.
