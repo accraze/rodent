@@ -27,5 +27,7 @@ cargo clippy --release --lib
 - GUI lives in `src/editor.rs`: a hand-painted pedal (egui `Painter`) with a custom `knob()` widget.
   Drag to turn, Shift for fine, double-click resets. Layout is absolute within a fixed `WIDTH`x`HEIGHT` window.
   Changing the window size needs a new `#[persist]` key on `editor_state`, or old projects reopen at the old size.
+- `Diode` enum sets the clipper's forward voltage (Si 0.6 V stock, LED 1.7 V Turbo RAT, Ge 0.3 V); output level
+  changes with it like the real mods. Bypass crossfades to dry but keeps processing so filter state stays warm.
 - The audio thread must not allocate (`assert_process_allocs` is enabled).
 - `CLAP_ID` and `VST3_CLASS_ID` must never change, or saved Bitwig projects lose the plugin.

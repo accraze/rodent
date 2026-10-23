@@ -30,13 +30,34 @@ const C_FEEDBACK: f32 = 100e-12;
 const OPAMP_GBW: f32 = 1e6; // LM308 with 30pF compensation
 const OPAMP_SLEW: f32 = 0.3e6; // V/s
 const RAIL: f32 = 4.5;
-const DIODE_V: f32 = 0.6;
 const R_FILTER_MIN: f32 = 1.5e3;
 const R_FILTER_POT: f32 = 100e3;
 const C_FILTER: f32 = 3.3e-9;
 
 /// Bypass crossfade time in seconds, long enough to avoid clicks
 const BYPASS_FADE: f32 = 0.01;
+
+/// Clipping diode pair, after the stock RAT and its two most famous variants.
+#[derive(Enum, PartialEq, Clone, Copy)]
+enum Diode {
+    /// Stock 1N914
+    Silicon,
+    /// Turbo RAT: louder and more open
+    #[name = "LED"]
+    Led,
+    /// You Dirty Rat (1N34A): quieter and more compressed
+    Germanium,
+}
+
+impl Diode {
+    fn forward_voltage(self) -> f32 {
+        match self {
+            Diode::Silicon => 0.6,
+            Diode::Led => 1.7,
+            Diode::Germanium => 0.3,
+        }
+    }
+}
 
 /// Topology-preserving one-pole filter, gives both low-pass and high-pass outputs.
 #[derive(Default, Clone, Copy)]
@@ -134,10 +155,11 @@ struct Coeffs {
     g_opamp: f32,
     max_step: f32,
     g_tone: f32,
+    diode_v: f32,
 }
 
 impl Coeffs {
-    fn new(dist: f32, filter: f32, fs: f32) -> Self {
+    fn new(dist: f32, filter: f32, diode: Diode, fs: f32) -> Self {
         let fs_os = fs * OVERSAMPLING as f32;
         // Audio taper (log) pot for distortion, linear pot for the filter like the original
         let r_dist = R_DIST_MAX * (10f32.powf(2.0 * dist) - 1.0) / 99.0;
@@ -154,6 +176,7 @@ impl Coeffs {
             g_opamp: prewarp(opamp_fc, fs_os),
             max_step: OPAMP_SLEW / fs_os,
             g_tone: prewarp(tone_fc, fs),
+            diode_v: diode.forward_voltage(),
         }
     }
 }
@@ -176,7 +199,7 @@ impl Channel {
             let target = RAIL * (gained / RAIL).tanh();
             self.opamp_out += (target - self.opamp_out).clamp(-c.max_step, c.max_step);
 
-            let clipped = DIODE_V * (self.opamp_out / DIODE_V).tanh();
+            let clipped = c.diode_v * (self.opamp_out / c.diode_v).tanh();
             out = self.down.process(clipped);
         }
 
@@ -204,6 +227,8 @@ struct RodentParams {
     filter: FloatParam,
     #[id = "volume"]
     volume: FloatParam,
+    #[id = "diode"]
+    diode: EnumParam<Diode>,
     #[id = "bypass"]
     bypass: BoolParam,
 }
@@ -235,6 +260,7 @@ impl Default for RodentParams {
             .with_unit(" dB")
             .with_value_to_string(formatters::v2s_f32_gain_to_db(1))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+            diode: EnumParam::new("Diodes", Diode::Silicon),
             bypass: BoolParam::new("Bypass", false).make_bypass(),
         }
     }
@@ -317,6 +343,7 @@ impl Plugin for Rodent {
             let coeffs = Coeffs::new(
                 self.params.distortion.smoothed.next(),
                 self.params.filter.smoothed.next(),
+                self.params.diode.value(),
                 self.sample_rate,
             );
             let volume = self.params.volume.smoothed.next();
@@ -364,24 +391,27 @@ mod tests {
     #[test]
     fn output_is_bounded_and_not_silent() {
         let fs = 48000.0;
-        for (dist, filter) in [(0.0, 0.0), (0.5, 0.3), (1.0, 0.0), (1.0, 1.0)] {
-            let c = Coeffs::new(dist, filter, fs);
-            let aa = AntiAlias::new(fs);
-            let mut ch = Channel {
-                up: aa,
-                down: aa,
-                ..Channel::default()
-            };
-            let peak = (0..48000)
-                .map(|n| ch.process(0.3 * (2.0 * PI * 220.0 * n as f32 / fs).sin(), &c))
-                .skip(4800)
-                .fold(0f32, |m, y| {
-                    assert!(y.is_finite());
-                    m.max(y.abs())
-                });
-            println!("dist {dist} filter {filter}: peak {peak:.3}");
-            // Anti-alias filter ringing lets peaks overshoot the 0.6 V diode clip a bit
-            assert!(peak > 0.05 && peak < 1.0);
+        for diode in [Diode::Silicon, Diode::Led, Diode::Germanium] {
+            for (dist, filter) in [(0.0, 0.0), (0.5, 0.3), (1.0, 0.0), (1.0, 1.0)] {
+                let c = Coeffs::new(dist, filter, diode, fs);
+                let aa = AntiAlias::new(fs);
+                let mut ch = Channel {
+                    up: aa,
+                    down: aa,
+                    ..Channel::default()
+                };
+                let peak = (0..48000)
+                    .map(|n| ch.process(0.3 * (2.0 * PI * 220.0 * n as f32 / fs).sin(), &c))
+                    .skip(4800)
+                    .fold(0f32, |m, y| {
+                        assert!(y.is_finite());
+                        m.max(y.abs())
+                    });
+                let vf = diode.forward_voltage();
+                println!("vf {vf} dist {dist} filter {filter}: peak {peak:.3}");
+                // Anti-alias filter ringing lets peaks overshoot the diode clip a bit
+                assert!(peak > 0.05 && peak < 1.5 * vf);
+            }
         }
     }
 }

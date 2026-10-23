@@ -1,6 +1,6 @@
 //! Pedal-style editor: a black RAT-like enclosure with three knobs, painted by hand.
 
-use crate::RodentParams;
+use crate::{Diode, RodentParams};
 use nih_plug::prelude::*;
 use nih_plug_egui::create_egui_editor;
 use nih_plug_egui::egui::{
@@ -70,6 +70,9 @@ pub fn create(params: Arc<RodentParams>) -> Option<Box<dyn Editor>> {
                             Color32::from_rgb(255, 190, 180),
                         );
                     }
+
+                    let switch_x = body.right() - body.width() / 6.0;
+                    diode_switch(ui, setter, &params.diode, Pos2::new(switch_x, led.y));
 
                     let logo = Pos2::new(body.center().x, body.top() + 245.0);
                     // The default font has no bold weight, so fake one by overdrawing
@@ -196,6 +199,50 @@ fn knob(ui: &Ui, setter: &ParamSetter, param: &FloatParam, center: Pos2) {
             Color32::from_gray(170),
         );
     }
+}
+
+fn diode_switch(ui: &Ui, setter: &ParamSetter, param: &EnumParam<Diode>, center: Pos2) {
+    const LABELS: [&str; 3] = ["SI", "LED", "GE"];
+    const SPACING: f32 = 26.0;
+    let slot = Rect::from_center_size(center, Vec2::new(SPACING * LABELS.len() as f32, 14.0));
+
+    let response = ui.interact(slot.expand(8.0), ui.id().with("diode"), Sense::click());
+    if let (true, Some(pos)) = (response.clicked(), response.interact_pointer_pos()) {
+        let index = ((pos.x - slot.left()) / SPACING).clamp(0.0, 2.0) as usize;
+        setter.begin_set_parameter(param);
+        setter.set_parameter(param, Diode::from_index(index));
+        setter.end_set_parameter(param);
+    }
+
+    let p = ui.painter();
+    p.rect_filled(slot, 7.0, Color32::from_gray(4));
+    p.rect_stroke(
+        slot,
+        7.0,
+        Stroke::new(1.0_f32, Color32::from_gray(60)),
+        StrokeKind::Outside,
+    );
+    let x = |i: usize| slot.left() + SPACING * (i as f32 + 0.5);
+    for (i, label) in LABELS.iter().enumerate() {
+        let pos = Pos2::new(x(i), slot.top() - 5.0);
+        p.text(
+            pos,
+            Align2::CENTER_BOTTOM,
+            label,
+            FontId::proportional(10.0),
+            WHITE,
+        );
+    }
+    let lever = Pos2::new(x(param.value().to_index()), center.y);
+    p.circle_filled(lever, 6.0, Color32::from_gray(185));
+    p.circle_filled(lever + Vec2::new(-1.5, -1.5), 2.0, Color32::from_gray(240));
+    p.text(
+        Pos2::new(center.x, slot.bottom() + 5.0),
+        Align2::CENTER_TOP,
+        "DIODES",
+        FontId::proportional(9.0),
+        Color32::from_gray(150),
+    );
 }
 
 fn screw(p: &Painter, center: Pos2) {
