@@ -47,3 +47,8 @@ cp -r target/bundled/Rodent.vst3 ~/.vst3/   # optional
 ```
 
 Then rescan plug-ins in your DAW.
+
+## License
+
+Rodent is licensed under the [GNU General Public License v3.0 or later](LICENSE).
+nih-plug itself is ISC licensed, but its VST3 bindings are GPLv3, so VST3 builds must be GPL anyway.

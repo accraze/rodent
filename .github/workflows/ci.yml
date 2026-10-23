@@ -63,4 +63,5 @@ jobs:
           git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           zip_name="rodent-$GITHUB_REF_NAME-linux.zip"
           (cd target/bundled && zip -qr "../../$zip_name" Rodent.clap Rodent.vst3)
+          zip -q "$zip_name" LICENSE
           gh release create "$GITHUB_REF_NAME" "$zip_name" --title "Rodent $GITHUB_REF_NAME" --notes-from-tag
