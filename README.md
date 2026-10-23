@@ -1,16 +1,25 @@
 # Rodent
 
+[![CI](https://github.com/accraze/rodent/actions/workflows/ci.yml/badge.svg)](https://github.com/accraze/rodent/actions/workflows/ci.yml)
+
 A ProCo RAT style distortion plugin (CLAP / VST3) built with [nih-plug](https://github.com/robbert-vdh/nih-plug).
 
+<p align="center"><img src="docs/screenshot.png" alt="Rodent plugin window" width="360"></p>
+
 Each stage of the original circuit is modelled: the LM308 gain stage (including its
-bandwidth and slew-rate limits), the 1N914 diode clipper, and the passive filter.
+bandwidth and slew-rate limits), the diode clipper, and the passive filter.
 The non-linear part runs at 4x oversampling.
 
-| Knob       | Range                                 |
-|------------|---------------------------------------|
-| Distortion | 0–100% (audio taper, up to ~66 dB)    |
-| Filter     | 0–100% (clockwise = darker, ~32 kHz → 475 Hz) |
-| Volume     | −30 to +12 dB                         |
+| Control    | Range                                          |
+|------------|------------------------------------------------|
+| Volume     | −30 to +12 dB                                  |
+| Filter     | 0–100% (clockwise = darker, ~32 kHz → 475 Hz)  |
+| Distortion | 0–100% (audio taper, up to ~66 dB)             |
+| Diodes     | SI (stock 1N914), LED (Turbo RAT), GE (You Dirty Rat) |
+| Footswitch | Bypass (the LED is lit when the effect is on)  |
+
+Knobs: drag or scroll to turn, hold Shift for fine control, double-click to reset.
+Drag the bottom-right corner to resize the window.
 
 ## Build
 
