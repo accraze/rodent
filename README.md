@@ -51,7 +51,7 @@ Then rescan plug-ins in your DAW.
 
 ## Releasing
 
-See [docs/RELEASING.md](docs/RELEASING.md). In short: bump the version, push an annotated `v*` tag, and CI publishes the release.
+Changes are listed in [CHANGELOG.md](CHANGELOG.md). See [docs/RELEASING.md](docs/RELEASING.md) for the process. In short: bump the version, push an annotated `v*` tag, and CI publishes the release.
 
 ## License
 

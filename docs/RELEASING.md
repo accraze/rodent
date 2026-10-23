@@ -7,20 +7,22 @@ Nothing is built or uploaded from a local machine.
 
 1. Bump `version` in `Cargo.toml` (semver: patch for fixes/docs/licensing, minor for new features
    or sound changes, major once presets/automation could break).
-2. Refresh the lockfile and commit:
+2. In `CHANGELOG.md`, move the `[Unreleased]` entries into a new `## [X.Y.Z] - YYYY-MM-DD` section
+   (user-facing changes only), and update the compare links at the bottom.
+3. Refresh the lockfile and commit:
    ```sh
    cargo metadata --format-version 1 -q > /dev/null   # updates Cargo.lock's version entry
-   git commit -am "Bump version to X.Y.Z"
+   git commit -am "Release X.Y.Z"
    git push origin main
    ```
-3. Wait for CI on `main` to go green. A tag on a broken commit still runs the checks, but you'd
+4. Wait for CI on `main` to go green. A tag on a broken commit still runs the checks, but you'd
    rather find out before the tag exists.
-4. Tag with an **annotated** tag. Its message becomes the release notes verbatim:
+5. Tag with an **annotated** tag. Its message becomes the release notes verbatim:
    ```sh
    git tag -a vX.Y.Z -F notes.md     # or -m "..." for short notes
    git push origin vX.Y.Z
    ```
-5. Watch the run (`gh run list`, `gh run watch <id>`), then check the release:
+6. Watch the run (`gh run list`, `gh run watch <id>`), then check the release:
    ```sh
    gh release view vX.Y.Z
    gh release download vX.Y.Z --dir /tmp/check && unzip -l /tmp/check/*.zip
@@ -29,8 +31,8 @@ Nothing is built or uploaded from a local machine.
 
 ### Release notes
 
-First line is the title (`Rodent vX.Y.Z`), then a one-line summary, then short sections such as
-Sound / GUI / Fixes, and an Install section. See `git tag -n99 v0.1.0` for the shape.
+First line is the title (`Rodent vX.Y.Z`), then a one-line summary, then the version's
+`CHANGELOG.md` entries, then an Install section. See `git tag -n99 v0.2.0` for the shape.
 
 ## What CI does on a tag
 
