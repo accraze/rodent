@@ -35,6 +35,9 @@ const R_FILTER_MIN: f32 = 1.5e3;
 const R_FILTER_POT: f32 = 100e3;
 const C_FILTER: f32 = 3.3e-9;
 
+/// Bypass crossfade time in seconds, long enough to avoid clicks
+const BYPASS_FADE: f32 = 0.01;
+
 /// Topology-preserving one-pole filter, gives both low-pass and high-pass outputs.
 #[derive(Default, Clone, Copy)]
 struct OnePole {
@@ -185,6 +188,8 @@ struct Rodent {
     params: Arc<RodentParams>,
     sample_rate: f32,
     channels: [Channel; 2],
+    /// 0 = bypassed, 1 = fully processed
+    wet: f32,
 }
 
 #[derive(Params)]
@@ -199,6 +204,8 @@ struct RodentParams {
     filter: FloatParam,
     #[id = "volume"]
     volume: FloatParam,
+    #[id = "bypass"]
+    bypass: BoolParam,
 }
 
 fn knob(name: &str, default: f32) -> FloatParam {
@@ -228,6 +235,7 @@ impl Default for RodentParams {
             .with_unit(" dB")
             .with_value_to_string(formatters::v2s_f32_gain_to_db(1))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+            bypass: BoolParam::new("Bypass", false).make_bypass(),
         }
     }
 }
@@ -238,6 +246,7 @@ impl Default for Rodent {
             params: Arc::new(RodentParams::default()),
             sample_rate: 48000.0,
             channels: [Channel::default(); 2],
+            wet: 1.0,
         }
     }
 }
@@ -293,6 +302,7 @@ impl Plugin for Rodent {
             down: aa,
             ..Channel::default()
         }; 2];
+        self.wet = if self.params.bypass.value() { 0.0 } else { 1.0 };
     }
 
     fn process(
@@ -301,6 +311,8 @@ impl Plugin for Rodent {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
+        let fade_step = 1.0 / (BYPASS_FADE * self.sample_rate);
+
         for mut frame in buffer.iter_samples() {
             let coeffs = Coeffs::new(
                 self.params.distortion.smoothed.next(),
@@ -308,9 +320,14 @@ impl Plugin for Rodent {
                 self.sample_rate,
             );
             let volume = self.params.volume.smoothed.next();
+            let target = if self.params.bypass.value() { 0.0 } else { 1.0 };
+            self.wet += (target - self.wet).clamp(-fade_step, fade_step);
 
+            // Keep processing while bypassed so filter states stay warm for a click-free return
             for (sample, channel) in frame.iter_mut().zip(self.channels.iter_mut()) {
-                *sample = channel.process(*sample, &coeffs) * volume;
+                let dry = *sample;
+                let wet = channel.process(dry, &coeffs) * volume;
+                *sample = dry + (wet - dry) * self.wet;
             }
         }
 

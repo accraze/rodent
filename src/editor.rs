@@ -55,13 +55,21 @@ pub fn create(params: Arc<RodentParams>) -> Option<Box<dyn Editor>> {
                     }
 
                     let led = Pos2::new(body.center().x, body.top() + 178.0);
-                    p.circle_filled(led, 10.0, Color32::from_rgba_unmultiplied(255, 30, 20, 40));
-                    p.circle_filled(led, 4.5, Color32::from_rgb(255, 50, 35));
-                    p.circle_filled(
-                        led + Vec2::new(-1.5, -1.5),
-                        1.5,
-                        Color32::from_rgb(255, 190, 180),
-                    );
+                    if params.bypass.value() {
+                        p.circle_filled(led, 4.5, Color32::from_rgb(70, 12, 10));
+                    } else {
+                        p.circle_filled(
+                            led,
+                            10.0,
+                            Color32::from_rgba_unmultiplied(255, 30, 20, 40),
+                        );
+                        p.circle_filled(led, 4.5, Color32::from_rgb(255, 50, 35));
+                        p.circle_filled(
+                            led + Vec2::new(-1.5, -1.5),
+                            1.5,
+                            Color32::from_rgb(255, 190, 180),
+                        );
+                    }
 
                     let logo = Pos2::new(body.center().x, body.top() + 245.0);
                     // The default font has no bold weight, so fake one by overdrawing
@@ -87,7 +95,8 @@ pub fn create(params: Arc<RodentParams>) -> Option<Box<dyn Editor>> {
                         WHITE,
                     );
 
-                    footswitch(p, Pos2::new(body.center().x, body.bottom() - 62.0));
+                    let switch = Pos2::new(body.center().x, body.bottom() - 62.0);
+                    footswitch(ui, setter, &params.bypass, switch);
                 });
         },
     )
@@ -198,8 +207,17 @@ fn screw(p: &Painter, center: Pos2) {
     );
 }
 
-fn footswitch(p: &Painter, center: Pos2) {
-    // Hex nut, then the chrome plunger
+fn footswitch(ui: &Ui, setter: &ParamSetter, bypass: &BoolParam, center: Pos2) {
+    let rect = Rect::from_center_size(center, Vec2::splat(54.0));
+    let response = ui.interact(rect, ui.id().with("footswitch"), Sense::click());
+    if response.clicked() {
+        setter.begin_set_parameter(bypass);
+        setter.set_parameter(bypass, !bypass.value());
+        setter.end_set_parameter(bypass);
+    }
+
+    // Hex nut, then the chrome plunger, which sinks a little while held
+    let p = ui.painter();
     let nut: Vec<Pos2> = (0..6)
         .map(|i| center + dir(i as f32 * TAU / 6.0) * 27.0)
         .collect();
@@ -210,6 +228,11 @@ fn footswitch(p: &Painter, center: Pos2) {
     ));
     p.circle_filled(center, 19.0, Color32::from_gray(150));
     p.circle_stroke(center, 19.0, Stroke::new(1.5_f32, Color32::from_gray(80)));
-    p.circle_filled(center, 13.0, Color32::from_gray(195));
+    let cap = if response.is_pointer_button_down_on() {
+        11.5
+    } else {
+        13.0
+    };
+    p.circle_filled(center, cap, Color32::from_gray(195));
     p.circle_filled(center + Vec2::new(-4.0, -4.0), 4.0, Color32::from_gray(235));
 }
