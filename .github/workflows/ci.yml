@@ -26,6 +26,17 @@ jobs:
       - run: cargo test --release --lib
       - run: cargo xtask bundle rodent --release
 
+      # Loads the plugin like a host would: state save/load, param handling, threading rules
+      - name: Validate CLAP plugin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download 0.4.1 --repo free-audio/clap-validator --pattern '*ubuntu-22.04.zip' --dir "$RUNNER_TEMP"
+          unzip -q "$RUNNER_TEMP"/clap-validator-*.zip -d "$RUNNER_TEMP/clap-validator"
+          validator=$(find "$RUNNER_TEMP/clap-validator" -name clap-validator -type f)
+          chmod +x "$validator"
+          "$validator" validate target/bundled/Rodent.clap
+
       - uses: actions/upload-artifact@v7
         with:
           name: rodent-linux
