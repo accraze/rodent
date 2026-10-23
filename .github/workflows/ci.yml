@@ -32,7 +32,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download 0.4.1 --repo free-audio/clap-validator --pattern '*ubuntu-22.04.zip' --dir "$RUNNER_TEMP"
+          # The release zip wraps a tarball
           unzip -q "$RUNNER_TEMP"/clap-validator-*.zip -d "$RUNNER_TEMP/clap-validator"
+          tar -xzf "$RUNNER_TEMP"/clap-validator/*.tar.gz -C "$RUNNER_TEMP/clap-validator"
           validator=$(find "$RUNNER_TEMP/clap-validator" -name clap-validator -type f)
           chmod +x "$validator"
           "$validator" validate target/bundled/Rodent.clap
